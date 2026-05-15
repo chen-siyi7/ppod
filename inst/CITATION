@@ -1,0 +1,45 @@
+citHeader("To cite ppod in publications, please use:")
+
+bibentry(
+  bibtype = "Article",
+  title   = paste(
+    "Continuous-Endpoint Posterior Predictive Utility with",
+    "Dependence-Sensitive Benefit-Risk Evaluation for Optimal",
+    "Biological Dose Selection"
+  ),
+  author  = c(
+    person("Author", "One"),
+    person("Author", "Two"),
+    person("Author", "Three")
+  ),
+  journal = "Biometrics",
+  year    = "2026",
+  note    = "Under review",
+
+  textVersion = paste(
+    "Author One, Author Two, and Author Three (2026).",
+    "Continuous-Endpoint Posterior Predictive Utility with",
+    "Dependence-Sensitive Benefit-Risk Evaluation for Optimal",
+    "Biological Dose Selection. Biometrics, under review."
+  )
+)
+
+bibentry(
+  bibtype = "Manual",
+  title   = "ppod: Posterior Predictive Optimal Biological Dose Selection",
+  author  = c(
+    person("Author", "One"),
+    person("Author", "Two"),
+    person("Author", "Three")
+  ),
+  year    = "2026",
+  note    = "R package version 0.1.0",
+  url     = "https://github.com/author/ppod",
+
+  textVersion = paste(
+    "Author One, Author Two, and Author Three (2026).",
+    "ppod: Posterior Predictive Optimal Biological Dose Selection.",
+    "R package version 0.1.0.",
+    "https://github.com/author/ppod"
+  )
+)

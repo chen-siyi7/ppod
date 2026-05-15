@@ -1,0 +1,212 @@
+---
+title: "ppod: an overview"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{ppod: an overview}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment  = "#>",
+  fig.width = 6,
+  fig.height = 4
+)
+set.seed(20260515)
+```
+
+## Introduction
+
+The `ppod` package implements a Bayesian phase I/II adaptive design
+for optimal biological dose (OBD) selection with continuous toxicity
+and efficacy endpoints. The methodological contribution is a
+**posterior predictive expected utility** criterion that integrates
+parameter uncertainty, residual outcome variability, and within-dose
+toxicity-efficacy dependence. The package implements three variants:
+
+- `eu_joint`: posterior predictive utility under the joint Gaussian
+  working model.
+- `eu_marginal`: the same predictive utility evaluated with
+  \(\rho_j \equiv 0\) at the utility integration step.
+- `eu_plugin`: utility evaluated at posterior-mean dose-response
+  estimates, ignoring residual variability and parameter uncertainty.
+
+The contrast between joint and marginal isolates the role of
+dependence-sensitive utility evaluation; the contrast between joint
+and plug-in isolates the role of posterior predictive integration.
+
+This vignette walks through the design on one scenario from the
+manuscript.
+
+```{r}
+library(ppod)
+```
+
+## The utility function
+
+The package uses a substitution utility on the bounded unit square,
+\[
+U(x_T, x_E) = x_E^{\alpha}\,\exp\!\bigl(-\lambda x_T^{\beta}\bigr),
+\]
+where \(x_T = g_T(Y_T)\) and \(x_E = g_E(Y_E)\) are toxicity and
+efficacy on the bounded scale. Under \(\alpha, \beta \ge 1\) and
+\(\lambda > 0\), the mixed partial \(U_{TE}\) is strictly negative on
+\((0,1)^2\), which is the substitutability condition under which
+Corollary 1 of the manuscript holds: expected utility strictly
+decreases in within-dose toxicity-efficacy correlation.
+
+```{r}
+util <- make_utility(alpha = 1, beta = 1, lam = 2)
+# Utility at (low tox, high efficacy) is close to 1
+util(x_T = 0.05, x_E = 0.95)
+# Utility at (high tox, high efficacy) is close to exp(-lambda)
+util(x_T = 0.95, x_E = 0.95)
+```
+
+## A scenario
+
+The 12 manuscript scenarios are available as `ppod_scenarios`. We use
+scenario S4b: unimodal efficacy with mild downturn at \(d_5\),
+constant within-dose correlation \(\rho = 0\), residual scale
+\(\sigma = 0.5\).
+
+```{r}
+scen <- ppod_scenarios$S4b
+data.frame(
+  dose  = 1:5,
+  mu_T  = scen$mu_T,
+  mu_E  = scen$mu_E,
+  x_T   = plogis(scen$mu_T),
+  x_E   = plogis(scen$mu_E)
+)
+```
+
+The true OBD under the data-generating distribution is computed by
+Monte Carlo over the joint bivariate normal:
+
+```{r}
+eu_true <- true_expected_utility(scen)
+data.frame(dose = 1:5, Psi_true = round(eu_true, 4))
+which.max(eu_true)
+```
+
+The true OBD is \(d_3\), matching `scen$true_OBD`.
+
+## One adaptive trial
+
+`simulate_trial` runs one replicate of the adaptive design. The
+default settings reproduce the manuscript: \(N = 54\) patients,
+cohort size 3, run-in to \(n_0 = 9\), then utility-based assignment
+on the predictive admissible set with no-skipping-upward.
+
+```{r trial}
+result <- simulate_trial(scen, criterion = "joint")
+result$selected            # selected OBD index
+table(factor(result$dose_history, levels = 1:5))
+```
+
+If the trial stopped without a recommendation, `result$selected` is
+`NA_integer_` and one of `result$stopped_tox` or
+`result$stopped_fut` is `TRUE`.
+
+## Comparing the three continuous-endpoint criteria
+
+The three continuous criteria (joint, marginal, plug-in) can be
+compared on the same scenario by varying the `criterion` argument.
+For speed in this vignette we use a small replicate count.
+
+```{r compare, cache = FALSE}
+designs <- c("joint", "marginal", "plugin")
+cells <- lapply(designs, function(d) {
+  run_replicates(scen, design = d, n_reps = 10L, seed_base = 1000L,
+                  S_interim = 50L, M_interim = 20L,
+                  S_final = 100L, M_final = 30L)
+})
+names(cells) <- designs
+
+sapply(cells, function(c) {
+  oc <- operating_characteristics(c, scen)
+  c(p_correct = round(oc$p_correct, 2),
+    mean_loss = round(oc$mean_loss, 4))
+})
+```
+
+In production, replicate counts of 200 to 400 are needed to bring the
+Monte Carlo standard error on `p_correct` below 3 percentage points.
+
+## Comparing against BOIN12
+
+The package also includes a simplified BOIN12 binary-endpoint
+comparator (Lin et al. 2020). The induced binary toxicity and
+efficacy probabilities are derived by thresholding the continuous
+outcomes at the same clinically meaningful cutoffs used by the
+proposed design's predictive admissibility gate.
+
+```{r boin12, cache = FALSE}
+cell_boin <- run_replicates(scen, design = "boin12", n_reps = 10L,
+                              seed_base = 2000L)
+oc_boin <- operating_characteristics(cell_boin, scen)
+c(p_correct = round(oc_boin$p_correct, 2),
+  mean_loss = round(oc_boin$mean_loss, 4),
+  overdose  = round(oc_boin$alloc["over"], 3))
+```
+
+## The S4d stress test
+
+The dose-varying dependence stress test S4d is the scenario where
+Proposition 3 of the manuscript predicts a marginal-versus-joint OBD
+reversal at the deterministic truth.
+
+```{r s4d}
+s4d <- ppod_scenarios$S4d
+# Joint and marginal true OBDs differ
+eu_j <- true_expected_utility(s4d)
+eu_m <- true_expected_utility(s4d, marginal = TRUE)
+data.frame(dose = 1:5,
+           Psi_joint    = round(eu_j, 4),
+           Psi_marginal = round(eu_m, 4))
+which.max(eu_j); which.max(eu_m)
+```
+
+Joint OBD is \(d_2\); marginal OBD is \(d_3\). At \(N = 54\) the
+adaptive trial typically cannot resolve this reversal reliably, since
+the deterministic gap (about 0.02 on a utility range of about 0.27)
+is small relative to within-trial posterior uncertainty; see Section 5
+of the manuscript and the supplementary `inst/scripts/reproduce_supp.R`.
+
+## Posterior inference at one cohort
+
+For users who want to inspect the inferential machinery directly:
+
+```{r posterior}
+set.seed(1)
+n_per <- 6L
+doses <- rep(1:5, each = n_per)
+J <- 5L
+# Simulate a 30-patient dataset from S4b's data-generating model
+Y_T <- stats::rnorm(J * n_per, mean = scen$mu_T[doses], sd = scen$sigma_T)
+Y_E <- stats::rnorm(J * n_per, mean = scen$mu_E[doses], sd = scen$sigma_E)
+
+fit <- fit_laplace(Y_T, Y_E, doses, J = J)
+fit$ok
+
+draws <- sample_posterior(fit$theta, fit$cov, S = 500)
+util  <- make_utility(1, 1, 2)
+data.frame(
+  dose     = 1:J,
+  eu_joint    = round(eu_joint(draws, M = 50, util, J = J), 4),
+  eu_marginal = round(eu_marginal(draws, M = 50, util, J = J), 4),
+  eu_plugin   = round(eu_plugin(fit$theta, util, J = J), 4)
+)
+```
+
+## Where to go next
+
+- The 12 simulation scenarios: `?ppod_scenarios`.
+- Constructing a custom scenario: `?make_scenario`.
+- Custom utility families: `?make_utility`.
+- Full reproducibility scripts:
+  `system.file("scripts", package = "ppod")`.
+- Manuscript and supplementary material: see the project README.

@@ -1,0 +1,39 @@
+Package: ppod
+Type: Package
+Title: Posterior Predictive Optimal Biological Dose Selection with
+    Continuous Toxicity and Efficacy Endpoints
+Version: 0.1.0
+Authors@R: c(
+    person("Author", "One", email = "author.one@institution.edu",
+           role = c("aut", "cre"),
+           comment = c(ORCID = "0000-0000-0000-0000")),
+    person("Author", "Two", role = "aut"),
+    person("Author", "Three", role = "aut"))
+Description: A Bayesian phase I/II adaptive design for optimal biological
+    dose (OBD) selection with continuous toxicity and efficacy endpoints.
+    Dose assignment and final selection are based on posterior predictive
+    expected utility evaluated under the joint toxicity-efficacy
+    distribution on a bounded transformed scale. The package implements
+    joint, marginal, and plug-in posterior predictive utility criteria;
+    posterior predictive admissibility gates; a binary-endpoint BOIN12
+    comparator (Lin et al. 2020); and the 12 simulation scenarios used
+    in the accompanying manuscript. Posterior inference uses a Laplace
+    approximation suitable for large operating-characteristics studies.
+License: MIT + file LICENSE
+URL: https://github.com/author/ppod
+BugReports: https://github.com/author/ppod/issues
+Encoding: UTF-8
+Depends:
+    R (>= 4.1.0)
+Imports:
+    MASS,
+    stats,
+    utils
+Suggests:
+    testthat (>= 3.0.0),
+    knitr,
+    rmarkdown,
+    parallel
+VignetteBuilder: knitr
+Config/testthat/edition: 3
+RoxygenNote: 7.3.2
