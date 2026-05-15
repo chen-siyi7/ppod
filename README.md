@@ -123,22 +123,7 @@ dependence; users running a single trial in practice should consider
 full MCMC posterior sampling and pass the resulting samples directly to
 `eu_joint`.
 
-## Citing
 
-If you use `ppod` in published work, please cite the accompanying
-manuscript:
-
-```bibtex
-@article{author2026ppod,
-  title   = {Continuous-Endpoint Posterior Predictive Utility with
-             Dependence-Sensitive Benefit-Risk Evaluation for Optimal
-             Biological Dose Selection},
-  author  = {Author One and Author Two and Author Three},
-  journal = {Biometrics},
-  year    = {2026},
-  note    = {Under review}
-}
-```
 
 ## License
 
